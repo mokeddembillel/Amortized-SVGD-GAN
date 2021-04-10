@@ -1,3 +1,4 @@
+
 # In[ ]:
 
 
@@ -148,7 +149,7 @@ class G(nn.Module):
         
         # Define the NN layers
         self.input_layer = nn.Linear(self.input_dim, self.input_fc1_dim)
-        self.fc1 = nn.BatchNorm1d(self.input_fc1_dim, self.fc1_output_dim)
+        self.fc1 = nn.LeakyReLU(0.1)
         self.output_layer = nn.Linear(self.fc1_output_dim, self.output_dim)
         
         # Initialize layers weights
@@ -170,9 +171,9 @@ class G(nn.Module):
         
     def forward(self, input, num_particle=5):
         X = self.input_layer(input)
-        X = F.relu(X)
+        #X = F.relu(X)
         X = self.fc1(X)
-        X = F.relu(X)
+        #X = F.relu(X)
         output = self.output_layer(X)
         #output = F.relu(output)
         return output
@@ -194,7 +195,7 @@ class D(nn.Module):
         
         # Define the NN layers
         self.input_layer = nn.Linear(self.input_dim, self.input_fc1_dim)
-        #self.fc1 = nn.Linear(self.input_fc1_dim, self.fc1_output_dim)
+        self.fc1 = nn.LeakyReLU(0.1)
         self.output_layer = nn.Linear(self.fc1_output_dim, self.output_dim)
         
         # Initialize layers weights
@@ -217,11 +218,11 @@ class D(nn.Module):
         
     def forward(self, input):
         X = self.input_layer(input)
-        X = F.relu(X)
-        #X = self.fc1(X)
+        #X = F.LeakyReLU(X)
+        X = self.fc1(X)
         #X = F.relu(X)
         output = self.output_layer(X)
-        return output
+        return F.sigmoid(output)
 
 class RBF(torch.nn.Module):
   def __init__(self, sigma=None):
@@ -289,37 +290,6 @@ class SVGD:
 # In[ ]:
 
 
-# def rbf_kernel(input_1, input_2,  h_min=1e-3):
-    
-#     k_fix, out_dim1 = input_1.size()[-2:]
-    
-#     k_upd, out_dim2 = input_2.size()[-2:]
-    
-#     assert out_dim1 == out_dim2
-
-#     leading_shape = input_1.size()[:-2]
-#     # Compute the pairwise distances of left and right particles.
-#     diff = input_1.unsqueeze(-2) - input_2.unsqueeze(-3)  
-#     # N * k_fix * 1 * out_dim / N * 1 * k_upd * out_dim/ N * k_fix * k_upd * out_dim
-#     dist_sq = diff.pow(2).sum(-1)
-#     # N * k_fix * k_upd
-#     dist_sq = dist_sq.unsqueeze(-1)
-#     # N * k_fix * k_upd * 1
-    
-#     # Get median.
-#     median_sq = T.median(dist_sq, dim=1)[0]
-#     median_sq = median_sq.unsqueeze(1)
-#     # N * 1 * k_upd * 1
-    
-#     h = median_sq / np.log(k_fix + 1.)
-#     # N * 1 * k_upd * 1
-
-#     kappa = T.exp(- dist_sq / h)
-#     # N * k_fix * k_upd * 1
-
-#     # Construct the gradient
-#     kappa_grad = -2. * diff / h * kappa
-#     return kappa, kappa_grad
 
 def rbf_kernel(input_1, input_2,  h_min=1e-3):
     
@@ -368,129 +338,33 @@ def learn_G(g_net, d_net, x_obs, batch_size = 10, alpha=1.):
     #print(score)
     # Get the Gradients of the energy with respect to x and y
     grad_score = autograd.grad(T.log(score.sum()), f_x)[0].squeeze(-1)
-    
+    #print(grad_score)
     # Compute the similarity using the RBF kernel 
-    #print(zeta)
     kappa, grad_kappa = rbf_kernel(f_x, f_x) # <<<<<<<<<<<<<<<<<<<<<<<<
-    # print(kappa)
-    # print(grad_kappa)
-    grad_score_x = grad_score[:, 0].unsqueeze(-1)
-    
+    #print(kappa)
 
-    svgd = T.mean(grad_score_x * kappa - 1 * grad_kappa, dim=1).detach()
-    #svgd = T.mean(T.matmul(grad_score.T, kappa) - 1 * grad_kappa, dim=1).detach()
-
-    # print(svgd)
-    #print()
+    # svgd_x = T.mean(grad_score_x * kappa - 1 * grad_kappa, dim=1).detach()
+    #svgd_y = T.mean(grad_score_y * kappa - 1 * grad_kappa, dim=1).detach()
     
-    #f_x.backward(T.eye(2))
-    
-    #grads = f_x.grad.data
-    
-    # gen_grad_score = []
-    # for i in range(batch_size):
-    #     grad = []
-    #     for j in range(2):
-    #         grad.append(list(autograd.grad(f_x[i, j], (g_net.parameters()), 
-    #                                         retain_graph=True, allow_unused=True)))
-            
-    #         # print("hiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii")
-    #         # #print(f_x[i, j])
-    #         # print("****************************************")
-    #         # print(grad[-1])
-    #         if T.any(grad[-1][0].isnan()):
-    #             raise Exception("NaNs Exception")
-    #         #return
-    #     gen_grad_score.append(grad)
-    
-    # # print("ffffffffffffffffffffffffffffffffffffffffffffffffffffff")
-    # gradients = []
-    # for i in range(batch_size):
-    #     grad = gen_grad_score[i]
-    #     delta = svgd[i]
-    #     # print(delta)
-    #     #a = T.matmul()
+    svgd = T.mean(T.matmul(kappa.squeeze(-1), grad_score) - 1 * grad_kappa, dim=1).detach()
+    T.matmul(grad_score.T, kappa)
+    ## Equation 8
+    f_x_prime = T.clone(zeta)
+    for i in range(batch_size):
+        f_x_prime[i, 0] = f_x_prime[i, 0] + g_net.lr * svgd[i, 0]
+        f_x_prime[i, 1] = f_x_prime[i, 1] + g_net.lr * svgd[i, 0]
         
-    #     for j in range(len(grad[0])):
-    #         # print('jjjjj')
-    #         # print(grad[0][j])
-    #         # print(delta[0])
-    #         grad[0][j] = grad[0][j] * delta[0]
-    #         #print(grad[0][j] * delta[0])
-
-    #     for j in range(len(grad[1])):
-    #         # print('rrrrr')
-    #         # print(grad[1][j])
-    #         # print(delta[1])
-    #         #print(grad[1][j])
-    #         grad[1][j] = grad[1][j] * delta[1]
-    #         #print(grad[1][j] * delta[1])
-
-        
-    #     grads = []
-    #     for j in range(len(grad[0])):
-    #         # print('kkkkk')
-    #         # print(grad[0][j])
-    #         # print(grad[1][j])
-    #         a = T.cat((grad[0][j].unsqueeze(0), grad[1][j].unsqueeze(0)),dim=0)
-    #         #print(a)
-    #         b = T.sum(a, dim=0)
-    #         #print(b)
-    #         grads.append(b.unsqueeze(0))
-            
-    #         # print(grads[-1])
-    #     gradients.append(grads)
+    # Computing the loss
     
-    # # print("mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm")
-    # gradients_sum = []
-    # for i in range(len(gradients[0])):
-    #     tmp = []
-    #     for j in range(batch_size):
-    #         tmp.append(gradients[j][i])
-            
-    #     a = T.cat(tuple(tmp), dim=0)
-    #     b = T.sum(a, dim=0)
-    #     gradients_sum.append(b)
+    loss = T.abs(f_x - f_x_prime)
+    loss = T.sum(loss, dim=0)
     
-    # with T.no_grad():
-    #     for i, p in enumerate(g_net.parameters()):
-    #         #print(p)
-    #         #print(gradients_sum[i])
-    #         print("gradients : ", gradients_sum[i])
-    #         p.copy_(p + g_net.lr * gradients_sum[i])
-    #         #print(p)
-    #         if T.any(p.isnan()):
-    #             raise Exception("NaNs Exception")
-    
-        
-    
+    loss = loss.sum(0)
     g_net.optimizer.zero_grad()
-    autograd.backward(f_x, grad_tensors= svgd)
+    loss.backward()
     g_net.optimizer.step()
   
-#     z_i = g_net.forward((Variable(T.FloatTensor(input)).view(-1,1).cpu()), num_particle=num_particle)
-    
-#     # N * k_upd * out_dim
-#     z_j = g_net.forward((Variable(T.FloatTensor(input)).view(-1,1).cpu()), num_particle=num_particle)
-#     # N * k_fix * out_dim
-    
-    # # N * k_fix * out_dim
-    # score = d_net(Variable(T.FloatTensor(input)).view(-1,1).cpu(), z_j)
-    
-    # grad_score = autograd.grad(score.sum(), z_j)[0].unsqueeze(2)
-    
-    # # N * k_fix * 1 * out_dim
-    # kappa, grad_kappa = rbf_kernel(z_j, z_i)
-    # # N * k_fix * k_upd / N * k_fix * k_upd * 1
-    
-    # svgd = T.mean( kappa*grad_score + alpha*grad_kappa, dim=1 ).detach()
-    # # N * k_fix * k_upd * out_dim -> N * k_upd * out_dim
-    
-    # g_optim.zero_grad()
-    # autograd.backward(
-    #     -z_i,
-    # grad_tensors=svgd)
-    # g_optim.step()
+
     
 def learn_D(g_net,d_net, x_obs, batch_size = 10, epsilon = 0.001):
     # Draw zeta random samples
@@ -502,42 +376,48 @@ def learn_D(g_net,d_net, x_obs, batch_size = 10, epsilon = 0.001):
     # Get the energy of the generated data using the discriminator
     gen_score = d_net.forward(f_x)
     
-    data_grad_score = []
-    for i in range(batch_size):
-        grad = list(autograd.grad(data_score[i], (d_net.parameters()), retain_graph=True, allow_unused=True, create_graph=True))
-        for j in range(len(grad)):
-            grad[j] = grad[j].unsqueeze(0)
-        data_grad_score.append(grad)
+    loss = - d_net.lr * data_score.mean() + d_net.lr * ( 1- 0.7) * gen_score.mean()
     
-    gen_grad_score = []
-    for i in range(batch_size):
-        grad = list(autograd.grad(gen_score[i], (d_net.parameters()), retain_graph=True, allow_unused=True, create_graph=True))
-        for j in range(len(grad)):
-            grad[j] = grad[j].unsqueeze(0)
-        gen_grad_score.append(grad)
-        
-        
-    data_grad_score_mean = []
-    for i in range(len(data_grad_score[0])):
-        tmp = []
-        for t in data_grad_score:
-            tmp.append(t[i])
-        data_grad_score_mean.append(T.cat(tuple(tmp), dim=0).mean(0))
-        
-        
-    gen_grad_score_mean = []
-    for i in range(len(gen_grad_score[0])):
-        tmp = []
-        for t in gen_grad_score:
-            tmp.append(t[i])
-        gen_grad_score_mean.append(T.cat(tuple(tmp), dim=0).mean(0))
+    d_optim.zero_grad()
+    autograd.backward(loss)
+    d_optim.step()
     
-    gradients = -1 * data_grad_score_mean + gen_grad_score_mean
+    # data_grad_score = []
+    # for i in range(batch_size):
+    #     grad = list(autograd.grad(data_score[i], (d_net.parameters()), retain_graph=True, allow_unused=True, create_graph=True))
+    #     for j in range(len(grad)):
+    #         grad[j] = grad[j].unsqueeze(0)
+    #     data_grad_score.append(grad)
     
-    with T.no_grad():
-        for i, p in enumerate(d_net.parameters()):
-            p.copy_(p + d_net.lr * gradients[i])
-            # print(p)
+    # gen_grad_score = []
+    # for i in range(batch_size):
+    #     grad = list(autograd.grad(gen_score[i], (d_net.parameters()), retain_graph=True, allow_unused=True, create_graph=True))
+    #     for j in range(len(grad)):
+    #         grad[j] = grad[j].unsqueeze(0)
+    #     gen_grad_score.append(grad)
+        
+        
+    # data_grad_score_mean = []
+    # for i in range(len(data_grad_score[0])):
+    #     tmp = []
+    #     for t in data_grad_score:
+    #         tmp.append(t[i])
+    #     data_grad_score_mean.append(T.cat(tuple(tmp), dim=0).mean(0))
+        
+        
+    # gen_grad_score_mean = []
+    # for i in range(len(gen_grad_score[0])):
+    #     tmp = []
+    #     for t in gen_grad_score:
+    #         tmp.append(t[i])
+    #     gen_grad_score_mean.append(T.cat(tuple(tmp), dim=0).mean(0))
+    
+    # gradients = -1 * data_grad_score_mean + gen_grad_score_mean
+    
+    # with T.no_grad():
+    #     for i, p in enumerate(d_net.parameters()):
+    #         p.copy_(p + d_net.lr * gradients[i])
+    #         # print(p)
      
     
 
@@ -549,16 +429,9 @@ def learn_D(g_net,d_net, x_obs, batch_size = 10, epsilon = 0.001):
 
 TRAIN_PARTICLES = 10
 NUM_PARTICLES = 100
-ITER_NUM = int(3e4)
+ITER_NUM = int(3e5)
 BATCH_SIZE = 16
-IMAGE_SHOW = 1e+3
-
-
-
-
-
-
-
+IMAGE_SHOW = 5e+2
   
 mog2 = MoG2(device=device)
 
@@ -571,8 +444,6 @@ X = X_init.clone()
 svgd = SVGD(mog2, K, T.optim.Adam([X], lr=1e-1))
 for _ in range(1000):
     svgd.step(X)
-
-print(X)
 
 x = X[:, 0].reshape(-1, 1)
 y = X[:, 1].reshape(-1, 1)
@@ -628,7 +499,7 @@ def train(alpha=1.0):
             plt.rcParams["figure.figsize"] = (20,10)
             fig, ax = plt.subplots()
             plt.xlim(-30,30)
-            plt.ylim(-50,50)
+            plt.ylim(-20,20)
             
             zeta = T.FloatTensor(3000, 2).uniform_(-10, 10)
 
