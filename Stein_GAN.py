@@ -222,7 +222,7 @@ class D(nn.Module):
         X = self.fc1(X)
         #X = F.relu(X)
         output = self.output_layer(X)
-        return F.sigmoid(output)
+        return output
 
 class RBF(torch.nn.Module):
   def __init__(self, sigma=None):
@@ -320,12 +320,14 @@ def rbf_kernel(input_1, input_2,  h_min=1e-3):
     #print(kappa)
 
     # Construct the gradient
-    kappa_grad = -2. * diff / (h * kappa + 1e-8)
+    #kappa_grad = -2. * diff / (h * kappa + 1e-8)
+    kappa_grad = -autograd.grad(kappa.sum(), input_1, retain_graph=True)[0]
+
     #print(kappa_grad)
     return kappa, kappa_grad
 
 
-def learn_G(g_net, d_net, x_obs, batch_size = 10, alpha=1.):
+def learn_G(P, g_net, d_net, x_obs, batch_size = 10, alpha=1.):
     # Draw zeta random samples
     zeta = T.FloatTensor(batch_size, 2).uniform_(0, 1)
     #zeta.requires_grad_(True)
@@ -337,7 +339,11 @@ def learn_G(g_net, d_net, x_obs, batch_size = 10, alpha=1.):
     score = d_net.forward(f_x)
     #print(score)
     # Get the Gradients of the energy with respect to x and y
-    grad_score = autograd.grad(T.log(score.sum()), f_x)[0].squeeze(-1)
+    grad_score = autograd.grad(-score.sum(), f_x)[0].squeeze(-1)
+    #print(grad_score)
+    # grad_score = autograd.grad(P.log_prob(f_x).sum(), f_x)[0].squeeze(-1)
+    # grad_score = P.log_prob(f_x)
+
     #print(grad_score)
     # Compute the similarity using the RBF kernel 
     kappa, grad_kappa = rbf_kernel(f_x, f_x) # <<<<<<<<<<<<<<<<<<<<<<<<
@@ -346,17 +352,24 @@ def learn_G(g_net, d_net, x_obs, batch_size = 10, alpha=1.):
     # svgd_x = T.mean(grad_score_x * kappa - 1 * grad_kappa, dim=1).detach()
     #svgd_y = T.mean(grad_score_y * kappa - 1 * grad_kappa, dim=1).detach()
     
-    svgd = T.mean(T.matmul(kappa.squeeze(-1), grad_score) - 1 * grad_kappa, dim=1).detach()
-    T.matmul(grad_score.T, kappa)
-    ## Equation 8
+    #svgd = T.mean(T.matmul(kappa.squeeze(-1), grad_score) - 1 * grad_kappa, dim=1).detach()
+    svgd = (T.matmul(kappa.squeeze(-1), grad_score) + 1 * grad_kappa) / f_x.size(0)
+
+    # print(svgd)
+    #T.matmul(grad_score.T, kappa)
+    # Equation 8
+    
     f_x_prime = T.clone(zeta)
     for i in range(batch_size):
         f_x_prime[i, 0] = f_x_prime[i, 0] + g_net.lr * svgd[i, 0]
-        f_x_prime[i, 1] = f_x_prime[i, 1] + g_net.lr * svgd[i, 0]
+        f_x_prime[i, 1] = f_x_prime[i, 1] + g_net.lr * svgd[i, 1]
         
     # Computing the loss
     
-    loss = T.abs(f_x - f_x_prime)
+    loss = (f_x - f_x_prime) ** 2
+    print(loss)
+    loss = T.square((f_x - f_x_prime))
+    print(loss)
     loss = T.sum(loss, dim=0)
     
     loss = loss.sum(0)
@@ -364,7 +377,9 @@ def learn_G(g_net, d_net, x_obs, batch_size = 10, alpha=1.):
     loss.backward()
     g_net.optimizer.step()
   
-
+    # g_optim.zero_grad()
+    # autograd.backward(-f_x, grad_tensors=svgd)
+    # g_optim.step()
     
 def learn_D(g_net,d_net, x_obs, batch_size = 10, epsilon = 0.001):
     # Draw zeta random samples
@@ -378,8 +393,9 @@ def learn_D(g_net,d_net, x_obs, batch_size = 10, epsilon = 0.001):
     
     loss = - d_net.lr * data_score.mean() + d_net.lr * ( 1- 0.7) * gen_score.mean()
     
+    
     d_optim.zero_grad()
-    autograd.backward(loss)
+    autograd.backward(-loss)
     d_optim.step()
     
     # data_grad_score = []
@@ -438,7 +454,7 @@ mog2 = MoG2(device=device)
 n = 300
 X_init = (5 * T.randn(n, *mog2.event_shape)).to(device)
 
-mog2_chart = get_density_chart(mog2, d=7.0, step=0.1)
+#mog2_chart = get_density_chart(mog2, d=7.0, step=0.1)
 
 X = X_init.clone()
 svgd = SVGD(mog2, K, T.optim.Adam([X], lr=1e-1))
@@ -479,7 +495,7 @@ def train(alpha=1.0):
         x_obs = T.from_numpy(np.array(x_obs)).float()
         
         # eval_svgd
-        learn_G(g_net, d_net, x_obs, batch_size=BATCH_SIZE)
+        learn_G(mog2, g_net, d_net, x_obs, batch_size=BATCH_SIZE)
         
         # sample minibatch
         index = np.random.choice(range(len(x)), size=BATCH_SIZE, replace=False)
