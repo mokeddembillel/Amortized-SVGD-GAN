@@ -49,13 +49,6 @@ len(y)
 
 # In[ ]:
 
-
-# plt.figure(figsize=(10,8))
-# plt.xlim(-10,10)
-# plt.ylim(-30,30)
-# plt.scatter(x, y,s=3)
-
-
 class MoG(T.distributions.Distribution):
   def __init__(self, loc, covariance_matrix):
     self.num_components = loc.size(0)
@@ -244,17 +237,12 @@ class D(nn.Module):
         self.to(self.device)
         
     def forward(self, input):
-        # X = self.fc1(input)
-        # X = F.relu(self.bn1(X))
-        # X = self.fc2(X)
-        # X = F.relu(self.bn2(X))
-        # X = self.fc3(X)
+        
         X = F.relu(self.fc1(input))
         X = F.relu(self.fc2(X))
         X = self.fc3(X)
         return -T.log(F.sigmoid(X))
-        #return -T.log(F.sigmoid(self.fc1(input)))
-        #return F.elu(self.input_layer(input))
+        
 
 class RBF(torch.nn.Module):
   def __init__(self, sigma=None):
@@ -362,6 +350,7 @@ def learn_G(P, g_net, d_net, x_obs, batch_size = 10, alpha=1.):
     # Compute the SVGD
     svgd = (T.matmul(kappa.squeeze(-1), grad_score) * 1000 + grad_kappa) / f_x.size(0)
     
+    # Update the network
     g_net.optimizer.zero_grad()
     autograd.backward(-f_x, grad_tensors=svgd)
     g_net.optimizer.step()  
@@ -379,9 +368,9 @@ def learn_D(g_net,d_net, x_obs, batch_size = 10, epsilon = 0.001):
     data_score = d_net.forward(x_obs)
     # Get the energy of the generated data using the discriminator
     gen_score = d_net.forward(f_x)
-    print("Data Score : ", data_score.mean().detach().numpy(), "\nGen Score : ", gen_score.mean().detach().numpy())
+    #print("Data Score : ", data_score.mean().detach().numpy(), "\nGen Score : ", gen_score.mean().detach().numpy())
 
-    
+    # Calculate the GP loss
     grad_r = autograd.grad(data_score.sum(), x_obs,
                         allow_unused=True, 
                         create_graph=True, 
@@ -397,6 +386,7 @@ def learn_D(g_net,d_net, x_obs, batch_size = 10, epsilon = 0.001):
     #loss = data_score.mean() - gen_score.mean()
     #print("Loss : ", loss)
     
+    # Update the network
     d_net.optimizer.zero_grad()
     autograd.backward(loss)
     d_net.optimizer.step()
@@ -412,7 +402,7 @@ def learn_D(g_net,d_net, x_obs, batch_size = 10, epsilon = 0.001):
 
 TRAIN_PARTICLES = 10
 NUM_PARTICLES = 100
-ITER_NUM = int(2e4)
+ITER_NUM = int(1e4)
 BATCH_SIZE = 64
 IMAGE_SHOW = 1e+2
   
@@ -511,14 +501,8 @@ def train(alpha=1.0):
             
             predict = g_net.forward(zeta.cpu()).detach().cpu().squeeze(-1)
             
-            # print(zeta)                        
-            #print(predict)
-
             
             ax.scatter(predict[:, 0].numpy(), predict[:, 1].numpy(),s=1, color='red')
-            # ax.scatter(list(np.linspace(-10,10, 300)), list(np.linspace(-10,10, 300)),s=1, alpha=0.4, color='red')
-            # ax.scatter(predict[:, 0], predict[:, 1],s=1, alpha=0.4, color='red')
-
             
             
             ax.set_title('Iter:'+str(i+1)+' alpha:'+str(alpha))
