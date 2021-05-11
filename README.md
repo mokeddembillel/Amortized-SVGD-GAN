@@ -2,8 +2,6 @@
 
 Based on the paper : [Learning to draw samples: with application to amortized maximum likelihood estimator for generative adversarial learning](https://arxiv.org/abs/1611.01722)
 
-I believe this is the only new Implementation of Amortized SVGD in Pytorch since the old version from 5 years ago using Chainer framework [Chainer Implementation](https://github.com/musyoku/ddgm)
-
 ## here are some examples :
 
 - This one works Perfectly
