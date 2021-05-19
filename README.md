@@ -4,16 +4,13 @@ Based on the paper : [Learning to draw samples: with application to amortized ma
 
 ## here are some examples :
 
-- This one works Perfectly
 
-![Gaussain.gif](a.gif)
+![Gaussain.gif](Gifs/b.gif)
 
-- This one not very well
 
-![Gaussain2.gif](b.gif)
+![Gaussain2.gif](Gifs/a.gif)
 
-- And this one doesn't work at all
 
-![Gaussain3.gif](c.gif)
+![Gaussain3.gif](Gifs/c.gif)
 
-### this is as far as i've got, so if anyone would be interested to help, you're all welcome
+### If Anyone is interested in contributing or collaborating, I would be very glad for that. Thank you
