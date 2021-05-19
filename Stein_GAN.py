@@ -136,7 +136,7 @@ class G(nn.Module):
         
         # Initialize Input dimentions
         self.fc1_dim = 2
-        self.fc2_dim = 512
+        self.fc2_dim = 128
         self.fc3_dim = 50
         self.fc4_dim = 50
         self.fc5_dim = 2
@@ -157,19 +157,19 @@ class G(nn.Module):
         
 
         # Initialize layers weights
-        self.fc1.weight.data.normal_(0,0.02)
-        self.fc2.weight.data.normal_(0,0.02)
-        self.fc3.weight.data.normal_(0,0.02)
-        self.fc4.weight.data.normal_(0,0.02)
-        self.fc5.weight.data.normal_(0,0.02)
+        self.fc1.weight.data.normal_(0,1)
+        self.fc2.weight.data.normal_(0,1)
+        self.fc3.weight.data.normal_(0,1)
+        self.fc4.weight.data.normal_(0,1)
+        self.fc5.weight.data.normal_(0,1)
         
     
         # Initialize layers biases
-        nn.init.constant_(self.fc1.bias, 0.0)
-        nn.init.constant_(self.fc2.bias, 0.0)
-        nn.init.constant_(self.fc3.bias, 0.0)
-        nn.init.constant_(self.fc4.bias, 0.0)
-        nn.init.constant_(self.fc5.bias, 0.0)
+        nn.init.constant_(self.fc1.bias, 1)
+        nn.init.constant_(self.fc2.bias, 1)
+        nn.init.constant_(self.fc3.bias, 1)
+        nn.init.constant_(self.fc4.bias, 1)
+        nn.init.constant_(self.fc5.bias, 1)
         
         
         self.lr = lr
@@ -182,13 +182,13 @@ class G(nn.Module):
         
     def forward(self, input, num_particle=5):
         X = self.fc1(input)
-        X = F.sigmoid(self.bn1(X))
+        X = F.tanh(self.bn1(X))
         X = self.fc2(X)
-        X = F.sigmoid(self.bn2(X))
+        X = F.tanh(self.bn2(X))
         X = self.fc3(X)
-        X = F.sigmoid(self.bn3(X))
+        X = F.tanh(self.bn3(X))
         X = self.fc4(X)
-        X = F.sigmoid(self.bn4(X))
+        X = F.tanh(self.bn4(X))
         X = self.fc5(X)
         return X
     
@@ -214,19 +214,19 @@ class D(nn.Module):
         self.fc2 = nn.Linear(self.fc2_dim, self.fc2_dim)
         self.fc3 = nn.Linear(self.fc2_dim, self.fc3_dim)
         
-        self.bn1 = nn.BatchNorm1d(self.fc2_dim)
-        self.bn2 = nn.BatchNorm1d(self.fc2_dim)
+        # self.bn1 = nn.BatchNorm1d(self.fc2_dim)
+        # self.bn2 = nn.BatchNorm1d(self.fc2_dim)
         
         # Initialize layers weights
-        self.fc1.weight.data.normal_(0,0.02)
-        self.fc2.weight.data.normal_(0,0.02)
-        self.fc3.weight.data.normal_(0,0.02)
+        self.fc1.weight.data.normal_(0,0.2)
+        self.fc2.weight.data.normal_(0,0.2)
+        self.fc3.weight.data.normal_(0,0.2)
         
         # # Initialize layers biases
         nn.init.constant_(self.fc1.bias, 0.0)
         nn.init.constant_(self.fc2.bias, 0.0)
         nn.init.constant_(self.fc3.bias, 0.0)
-        
+    
         self.lr = lr
         # Define Optimizer
         self.optimizer = T.optim.Adam(self.parameters(), lr = self.lr, betas=(0.0, 0.99))
@@ -243,6 +243,58 @@ class D(nn.Module):
         X = self.fc3(X)
         return -T.log(F.sigmoid(X))
         
+# class D(nn.Module):
+#     def __init__(self,lr=1e-4, input_dim=2):
+#         super().__init__()
+        
+#         # Initialize Input dimentions
+#         self.fc1_dim = 2
+#         self.fc2_dim = 128
+#         self.fc3_dim = 1
+        
+#         #self.fc1 = nn.Linear(self.fc1_dim, self.fc3_dim)
+        
+#         # Define the NN layers
+#         self.fc1 = nn.Linear(self.fc1_dim, self.fc2_dim)
+#         self.fc2 = nn.Linear(self.fc2_dim, self.fc2_dim)
+#         self.fc3 = nn.Linear(self.fc2_dim, self.fc2_dim)
+#         self.fc4 = nn.Linear(self.fc2_dim, self.fc2_dim)
+#         self.fc5 = nn.Linear(self.fc2_dim, self.fc3_dim)
+        
+#         # self.bn1 = nn.BatchNorm1d(self.fc2_dim)
+#         # self.bn2 = nn.BatchNorm1d(self.fc2_dim)
+        
+#         # Initialize layers weights
+#         self.fc1.weight.data.normal_(0,0.2)
+#         self.fc2.weight.data.normal_(0,0.2)
+#         self.fc3.weight.data.normal_(0,0.2)
+#         self.fc4.weight.data.normal_(0,0.2)
+#         self.fc5.weight.data.normal_(0,0.2)
+        
+#         # # Initialize layers biases
+#         nn.init.constant_(self.fc1.bias, 0.0)
+#         nn.init.constant_(self.fc2.bias, 0.0)
+#         nn.init.constant_(self.fc3.bias, 0.0)
+#         nn.init.constant_(self.fc4.bias, 0.0)
+#         nn.init.constant_(self.fc5.bias, 0.0)
+    
+#         self.lr = lr
+#         # Define Optimizer
+#         self.optimizer = T.optim.Adam(self.parameters(), lr = self.lr, betas=(0.0, 0.99))
+        
+        
+#         # Set Device
+#         self.device = T.device('cuda:0' if T.cuda.is_available() else 'cpu')
+#         self.to(self.device)
+        
+#     def forward(self, input):
+        
+#         X = F.relu(self.fc1(input))
+#         X = F.relu(self.fc2(X))
+#         X = F.relu(self.fc3(X))
+#         X = F.relu(self.fc4(X))
+#         X = self.fc5(X)
+#         return -T.log(F.sigmoid(X))
 
 class RBF(torch.nn.Module):
   def __init__(self, sigma=None):
@@ -326,7 +378,7 @@ def rbf_kernel(X, Y,  h_min=1e-3):
     gamma = 1.0 / (1e-8 + 2 * sigma ** 2)
     K_XY = (-gamma * dnorm2).exp()
     
-    grad_K = -autograd.grad(K_XY.sum(), X)[0]
+    grad_K = -autograd.grad(K_XY.mean(), X)[0]
     
     return K_XY, grad_K
 
@@ -343,12 +395,13 @@ def learn_G(P, g_net, d_net, x_obs, batch_size = 10, alpha=1.):
     
     # Get the Gradients of the energy with respect to x and y
     grad_score = autograd.grad(-score.sum(), f_x)[0].squeeze(-1)
-    
+    #grad_score = autograd.grad(P.log_prob(f_x).sum(), f_x)[0].squeeze(-1)
+
     # Compute the similarity using the RBF kernel 
     kappa, grad_kappa = rbf_kernel(f_x, f_x)
-
+    
     # Compute the SVGD
-    svgd = (T.matmul(kappa.squeeze(-1), grad_score) * 1000 + grad_kappa) / f_x.size(0)
+    svgd = (T.matmul(kappa.squeeze(-1), grad_score) + grad_kappa) / f_x.size(0)
     
     # Update the network
     g_net.optimizer.zero_grad()
@@ -368,9 +421,9 @@ def learn_D(g_net,d_net, x_obs, batch_size = 10, epsilon = 0.001):
     data_score = d_net.forward(x_obs)
     # Get the energy of the generated data using the discriminator
     gen_score = d_net.forward(f_x)
-    #print("Data Score : ", data_score.mean().detach().numpy(), "\nGen Score : ", gen_score.mean().detach().numpy())
+    print("Data Score : ", data_score.mean().detach().numpy(), "\nGen Score : ", gen_score.mean().detach().numpy())
 
-    # Calculate the GP loss
+    #Calculate the GP loss
     grad_r = autograd.grad(data_score.sum(), x_obs,
                         allow_unused=True, 
                         create_graph=True, 
@@ -381,10 +434,10 @@ def learn_D(g_net,d_net, x_obs, batch_size = 10, epsilon = 0.001):
                         retain_graph=True)[0]
     loss_gp = torch.mean(grad_r.norm(dim=1,p=2)**2) + torch.mean(grad_f.norm(dim=1,p=2)**2)
     
-    loss = data_score.mean() - gen_score.mean() + 100 * loss_gp
+    loss = data_score.mean() - gen_score.mean() + 10 * loss_gp
     
     #loss = data_score.mean() - gen_score.mean()
-    #print("Loss : ", loss)
+    #print("Loss : ", loss.detach().numpy())
     
     # Update the network
     d_net.optimizer.zero_grad()
@@ -402,9 +455,9 @@ def learn_D(g_net,d_net, x_obs, batch_size = 10, epsilon = 0.001):
 
 TRAIN_PARTICLES = 10
 NUM_PARTICLES = 100
-ITER_NUM = int(1e4)
+ITER_NUM = int(6e4)
 BATCH_SIZE = 64
-IMAGE_SHOW = 1e+2
+IMAGE_SHOW = 5e+2
   
 # mog2 = MoG2(device=device)
 
@@ -415,7 +468,7 @@ IMAGE_SHOW = 1e+2
 
 # X = X_init.clone()
 # svgd = SVGD(mog2, K, T.optim.Adam([X], lr=1e-1))
-# for _ in range(1000):
+# for _ in range(1500):
 #     svgd.step(X)
 
 # x = X[:, 0].reshape(-1, 1)
@@ -424,16 +477,16 @@ IMAGE_SHOW = 1e+2
 
 
 
-gauss = torch.distributions.MultivariateNormal(torch.Tensor([10, 10]).to(device),
-        covariance_matrix=5 * torch.Tensor([[0.3, 0],[0, 0.3]]).to(device))
-n = 300
-X_init = (3 * torch.randn(n, *gauss.event_shape)).to(device)
-X = X_init.clone()
-svgd = SVGD(gauss, K, optim.Adam([X], lr=1e-1))
-for _ in range(1000):
-    svgd.step(X)
-x = X[:, 0].reshape(-1, 1)
-y = X[:, 1].reshape(-1, 1)
+# gauss = torch.distributions.MultivariateNormal(torch.Tensor([10, 10]).to(device),
+#         covariance_matrix=5 * torch.Tensor([[0.3, 0],[0, 0.3]]).to(device))
+# n = 300
+# X_init = (3 * torch.randn(n, *gauss.event_shape)).to(device)
+# X = X_init.clone()
+# svgd = SVGD(gauss, K, optim.Adam([X], lr=1e-1))
+# for _ in range(1000):
+#     svgd.step(X)
+# x = X[:, 0].reshape(-1, 1)
+# y = X[:, 1].reshape(-1, 1)
 mog2 = None
 
 
@@ -452,13 +505,12 @@ ax.scatter(zeta[:, 0].numpy(), zeta[:, 1].numpy(),s=1, color='red')
 
 ax.set_title('Iter:'+str(0)+' alpha:')
 plt.show()
-# print(x)
-# print(y)
+
 def train(alpha=1.0):
+        
     data_score, gen_score, loss = [], [], []
     for i in range(ITER_NUM):
-        
-        
+        #('Iteration :', i)
         if i%1 == 0:
             # sample minibatch
             index = np.random.choice(range(len(x)), size=BATCH_SIZE, replace=False)
@@ -475,7 +527,7 @@ def train(alpha=1.0):
             loss.append(c)
             #print(a)
         
-        if i%2  == 0:
+        if i%20 == 0:
             # sample minibatch
             index = np.random.choice(range(len(x)), size=BATCH_SIZE, replace=False)
             mini_x = x[index]
@@ -535,6 +587,23 @@ g_net = G().cpu()
 d_net = D().cpu()
 
 train(1.)
+
+x = np.arange(-20, 20, 0.5)
+y = np.zeros(len(x))
+particles = []
+for i in range(len(x)):
+    particles.append([x[i], y[i]])
+particles = T.tensor(np.array(particles, dtype=np.float32))
+
+energy = d_net.forward(particles).detach().numpy()
+#energy = mog2.log_prob(particles).detach().numpy()
+#P.log_prob(f_x)
+
+#print(energy)
+
+plt.plot(energy)
+plt.ylabel('energy')
+plt.show()
 
 
 # In[ ]:
