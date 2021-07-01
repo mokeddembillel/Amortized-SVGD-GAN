@@ -11,8 +11,6 @@ from Stein_GAN_torch import learn_G, learn_D
 print(T.__version__)
 device = T.device('cuda' if T.cuda.is_available() else 'cpu')
 
-TRAIN_PARTICLES = 10
-NUM_PARTICLES = 100
 ITER_NUM = int(6e4)
 BATCH_SIZE = 64
 IMAGE_SHOW = 5e+2

@@ -42,11 +42,11 @@ class G(nn.Module):
         
     
         # Initialize layers biases
-        nn.init.constant_(self.fc1.bias, 1)
-        nn.init.constant_(self.fc2.bias, 1)
-        nn.init.constant_(self.fc3.bias, 1)
-        nn.init.constant_(self.fc4.bias, 1)
-        nn.init.constant_(self.fc5.bias, 1)
+        nn.init.constant_(self.fc1.bias, 0)
+        nn.init.constant_(self.fc2.bias, 0)
+        nn.init.constant_(self.fc3.bias, 0)
+        nn.init.constant_(self.fc4.bias, 0)
+        nn.init.constant_(self.fc5.bias, 0)
         
         
         self.lr = lr
