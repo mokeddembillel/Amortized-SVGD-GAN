@@ -28,26 +28,6 @@ print(torch.__version__)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-# # Make data
-
-# In[ ]:
-
-
-f = lambda x : x**2
-
-x = np.linspace(-3,3,300)
-mean_list = f(x)
-#y = f(x) + np.random.uniform(low=-1.0,high=1.0,size=x.shape)* 4* np.cos(x/2+.5)
-y = f(x) + np.random.normal(0,1,size=x.shape) + np.random.normal(1,1,size=x.shape)
-
-y_ = -y
-x = np.concatenate((x,x), axis=0)
-y = np.concatenate((y,y_),axis =0)
-len(x)
-len(y)
-
-
-# In[ ]:
 
 class MoG(T.distributions.Distribution):
   def __init__(self, loc, covariance_matrix):
@@ -243,58 +223,6 @@ class D(nn.Module):
         X = self.fc3(X)
         return -T.log(F.sigmoid(X))
         
-# class D(nn.Module):
-#     def __init__(self,lr=1e-4, input_dim=2):
-#         super().__init__()
-        
-#         # Initialize Input dimentions
-#         self.fc1_dim = 2
-#         self.fc2_dim = 128
-#         self.fc3_dim = 1
-        
-#         #self.fc1 = nn.Linear(self.fc1_dim, self.fc3_dim)
-        
-#         # Define the NN layers
-#         self.fc1 = nn.Linear(self.fc1_dim, self.fc2_dim)
-#         self.fc2 = nn.Linear(self.fc2_dim, self.fc2_dim)
-#         self.fc3 = nn.Linear(self.fc2_dim, self.fc2_dim)
-#         self.fc4 = nn.Linear(self.fc2_dim, self.fc2_dim)
-#         self.fc5 = nn.Linear(self.fc2_dim, self.fc3_dim)
-        
-#         # self.bn1 = nn.BatchNorm1d(self.fc2_dim)
-#         # self.bn2 = nn.BatchNorm1d(self.fc2_dim)
-        
-#         # Initialize layers weights
-#         self.fc1.weight.data.normal_(0,0.2)
-#         self.fc2.weight.data.normal_(0,0.2)
-#         self.fc3.weight.data.normal_(0,0.2)
-#         self.fc4.weight.data.normal_(0,0.2)
-#         self.fc5.weight.data.normal_(0,0.2)
-        
-#         # # Initialize layers biases
-#         nn.init.constant_(self.fc1.bias, 0.0)
-#         nn.init.constant_(self.fc2.bias, 0.0)
-#         nn.init.constant_(self.fc3.bias, 0.0)
-#         nn.init.constant_(self.fc4.bias, 0.0)
-#         nn.init.constant_(self.fc5.bias, 0.0)
-    
-#         self.lr = lr
-#         # Define Optimizer
-#         self.optimizer = T.optim.Adam(self.parameters(), lr = self.lr, betas=(0.0, 0.99))
-        
-        
-#         # Set Device
-#         self.device = T.device('cuda:0' if T.cuda.is_available() else 'cpu')
-#         self.to(self.device)
-        
-#     def forward(self, input):
-        
-#         X = F.relu(self.fc1(input))
-#         X = F.relu(self.fc2(X))
-#         X = F.relu(self.fc3(X))
-#         X = F.relu(self.fc4(X))
-#         X = self.fc5(X)
-#         return -T.log(F.sigmoid(X))
 
 class RBF(torch.nn.Module):
   def __init__(self, sigma=None):
@@ -350,17 +278,6 @@ class SVGD:
     self.optim.step()
 
 
-# # Calculate the amortized Stein Variational Gradient
-# 
-# $$
-# \begin{eqnarray}
-# \eta^{t+1} &\leftarrow \eta^{t} + \epsilon \frac{1}{m}\sum_{i=1}^m \partial_{\eta}f(\xi_i ; \eta^t) \phi^* (z_i)\\
-# &\leftarrow \eta^{t} + \epsilon \frac{1}{nm} \sum_{i=1}^m \partial_{\eta}f(\xi_i ; \eta^t) \sum_{j=1}^{n} \big[ \nabla_{z_j} \log p(z_j) k(z_j, z_i) + \nabla_{z_j}k(z_j,z_i) \big]\\
-# \end{eqnarray}
-# $$
-
-# In[ ]:
-
 
 def rbf_kernel(X, Y,  h_min=1e-3):
 
@@ -381,7 +298,6 @@ def rbf_kernel(X, Y,  h_min=1e-3):
     grad_K = -autograd.grad(K_XY.mean(), X)[0]
     
     return K_XY, grad_K
-
 
 
 def learn_G(P, g_net, d_net, x_obs, batch_size = 10, alpha=1.):
@@ -448,17 +364,23 @@ def learn_D(g_net,d_net, x_obs, batch_size = 10, epsilon = 0.001):
     
 
 
-# # Test it!
-
-# In[ ]:
-
-
 TRAIN_PARTICLES = 10
 NUM_PARTICLES = 100
 ITER_NUM = int(6e4)
 BATCH_SIZE = 64
 IMAGE_SHOW = 5e+2
-  
+
+f = lambda x : x**2
+
+x = np.linspace(-3,3,300)
+mean_list = f(x)
+#y = f(x) + np.random.uniform(low=-1.0,high=1.0,size=x.shape)* 4* np.cos(x/2+.5)
+y = f(x) + np.random.normal(0,1,size=x.shape) + np.random.normal(1,1,size=x.shape)
+
+y_ = -y
+x = np.concatenate((x,x), axis=0)
+y = np.concatenate((y,y_),axis =0)
+
 # mog2 = MoG2(device=device)
 
 # n = 300
@@ -511,15 +433,16 @@ def train(alpha=1.0):
     data_score, gen_score, loss = [], [], []
     for i in range(ITER_NUM):
         #('Iteration :', i)
+        # sample minibatch
+        index = np.random.choice(range(len(x)), size=BATCH_SIZE, replace=False)
+        mini_x = x[index]
+        mini_y = y[index]
+        x_obs = []
+        for j in range(len(mini_x)):
+            x_obs.append([mini_x[j], mini_y[j]])
+        x_obs = T.from_numpy(np.array(x_obs)).float()
         if i%1 == 0:
-            # sample minibatch
-            index = np.random.choice(range(len(x)), size=BATCH_SIZE, replace=False)
-            mini_x = x[index]
-            mini_y = y[index]
-            x_obs = []
-            for j in range(len(mini_x)):
-                x_obs.append([mini_x[j], mini_y[j]])
-            x_obs = T.from_numpy(np.array(x_obs)).float()
+            
             # learn discriminator
             a, b, c = learn_D(g_net, d_net, x_obs, batch_size=BATCH_SIZE)
             data_score.append(a[0])
@@ -528,14 +451,7 @@ def train(alpha=1.0):
             #print(a)
         
         if i%20 == 0:
-            # sample minibatch
-            index = np.random.choice(range(len(x)), size=BATCH_SIZE, replace=False)
-            mini_x = x[index]
-            mini_y = y[index]
-            x_obs = []
-            for j in range(len(mini_x)):
-                x_obs.append([mini_x[j], mini_y[j]])
-            x_obs = T.from_numpy(np.array(x_obs)).float()
+            
             # eval_svgd
             learn_G(mog2, g_net, d_net, x_obs, batch_size=BATCH_SIZE)
         
