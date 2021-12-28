@@ -118,5 +118,5 @@ class D(nn.Module):
         X = F.relu(self.fc1(input))
         X = F.relu(self.fc2(X))
         X = self.fc3(X)
-        return -T.log(F.sigmoid(X))
+        return -T.log(F.sigmoid(X)+.05)
         
